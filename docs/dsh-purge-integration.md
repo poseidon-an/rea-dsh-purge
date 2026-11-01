@@ -21,7 +21,7 @@ and REA itself can call them.
 | Path | Purpose |
 | --- | --- |
 | `scripts/dsh-purge-mcp.mjs` | Standalone, **zero-dependency** MCP server over stdio (JSON-RPC 2.0). |
-| `scripts/dsh-purge-cli.mjs` | `rea dsh-purge` subcommand dispatcher (`mcp`, `prompt`, `help`). |
+| `scripts/dsh-purge-cli.mjs` | `rea dsh-purge` subcommand dispatcher (`mcp`, `presets`, `models`, `route`, `prompt`, `help`). |
 | `src/dshPurge/assets/prompt-inject.zh.md` | dsh-purge's Chinese system-prompt template (port, Apache-2.0). |
 | `src/dshPurge/assets/prompt-inject.en.md` | dsh-purge's English system-prompt template (port, Apache-2.0). |
 | `src/dshPurge/assets/LICENSE.dsh-purge` | Apache License 2.0 text for the ported material. |
@@ -43,10 +43,16 @@ and REA itself can call them.
 As a REA subcommand:
 
 ```bash
-# Start the dsh-purge MCP server (stdio transport)
+# Start the dsh-purge MCP server (stdio transport) — for MCP clients
 rea dsh-purge mcp
 
-# Render a prompt directly from the CLI
+# Inspect the bundled capability surface
+rea dsh-purge presets      # red-team presets / sub-agent roles
+rea dsh-purge models       # target model prompt profiles
+rea dsh-purge route "对目标做 web 渗透测试"   # classify text -> intent category + rules
+rea dsh-purge route "reverse engineer this binary" --lang en
+
+# Render a red-team system prompt directly from the CLI
 rea dsh-purge prompt --task "对 TARGET 做 web 渗透" --role recon --lang zh
 rea dsh-purge prompt --lang en --task "reverse engineer APP" --json
 
@@ -58,7 +64,7 @@ Directly (without REA's CLI):
 
 ```bash
 node scripts/dsh-purge-mcp.mjs            # MCP server
-node scripts/dsh-purge-cli.mjs prompt ... # CLI
+node scripts/dsh-purge-cli.mjs <subcommand> ...   # CLI
 ```
 
 ## Connecting from an MCP client
