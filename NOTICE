@@ -1,0 +1,21 @@
+REA (rea-agents) combines MIT-licensed first-party code with Apache License 2.0
+material ported from the dsh-purge project.
+
+This product includes software developed by the dsh-purge authors, licensed
+under the Apache License, Version 2.0 (the "License"). You may obtain a copy of
+the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+The dsh-purge-derived material lives under:
+    src/dshPurge/assets/   (prompt-inject templates + Apache-2.0 license text)
+    scripts/dsh-purge-mcp.mjs, scripts/dsh-purge-cli.mjs  (port of routing logic)
+
+The full Apache License 2.0 text is in src/dshPurge/assets/LICENSE.dsh-purge.
+
+Portions of this software were derived from:
+    https://github.com/YuJunZhiXue/dsh-purge   (Apache License 2.0)
+
+No modifications were made to the security behaviour of the ported prompt
+framework; it reproduces dsh-purge's existing red-team prompt templates and
+intent-routing tables for authorized security research.
