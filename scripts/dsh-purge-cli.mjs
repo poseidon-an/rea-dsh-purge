@@ -27,21 +27,31 @@ export function printDshPurgeHelp() {
       "rea dsh-purge — red-team prompt framework ported from dsh-purge",
       "",
       "USAGE",
-      "  rea dsh-purge mcp            Start the dsh-purge MCP server (stdio transport).",
-      "  rea dsh-purge prompt ...     Render a red-team system prompt and print it.",
-      "  rea dsh-purge help           Show this message.",
+      "  rea dsh-purge mcp               Start the dsh-purge MCP server (stdio transport).",
+      "  rea dsh-purge presets           List bundled red-team presets / sub-agent roles.",
+      "  rea dsh-purge models            List target model prompt profiles.",
+      "  rea dsh-purge route <text>      Classify text into an intent category + rule set.",
+      "  rea dsh-purge prompt ...         Render a red-team system prompt and print it.",
+      "  rea dsh-purge help              Show this message.",
       "",
-      "PROMPT OPTIONS",
-      "  --lang <zh|en>               Template language (default: zh).",
-      "  --task <text>                Engagement task / objective to append.",
-      "  --model <id>                 Target model profile id (see dsh_purge_list_target_models).",
-      "  --role <code>                Red-team role: recon|assess|vuln-scan|exploit|internal.",
-      "  --json                      Emit the full tool result as JSON instead of bare text.",
+      "PROMPT OPTIONS (prompt)",
+      "  --lang <zh|en>                 Template language (default: zh).",
+      "  --task <text>                  Engagement task / objective to append.",
+      "  --model <id>                   Target model profile id (see `rea dsh-purge models`).",
+      "  --role <code>                  Red-team role: recon|assess|vuln-scan|exploit|internal.",
+      "",
+      "ROUTE OPTIONS (route)",
+      "  --lang <zh|en>                 Classification language (default: zh).",
+      "",
+      "GLOBAL",
+      "  --json                        Emit raw JSON instead of rendered text (all subcommands).",
       "",
       "EXAMPLES",
       "  rea dsh-purge mcp",
+      "  rea dsh-purge presets",
+      "  rea dsh-purge models",
+      "  rea dsh-purge route \"如何绕过模型的内容过滤\"",
       "  rea dsh-purge prompt --task \"对 TARGET 做 web 渗透\" --role recon",
-      "  rea dsh-purge prompt --lang en --task \"reverse engineer APP\" --json",
       "",
       "NOTE: dsh-purge is a cybersecurity red-team / AI-robustness research harness.",
       "Use only against systems you are authorized to test.",
@@ -49,19 +59,29 @@ export function printDshPurgeHelp() {
   );
 }
 
+/**
+ * Parse flags + collect positional (non-flag) arguments.
+ * `--json` is boolean; `--lang/--task/--model/--role` consume the next token
+ * (skipping it as a positional so e.g. route text is never polluted by values).
+ */
 function parseFlags(argv) {
   const opts = { lang: "zh", task: "", model: "universal-zh", role: "", json: false };
+  const positional = [];
   for (let i = 1; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--json") { opts.json = true; continue; }
-    const key = a.replace(/^--/, "");
-    const val = argv[i + 1];
-    if (["lang", "task", "model", "role"].includes(key) && val !== undefined) {
-      opts[key] = val;
-      i += 1;
+    if (a.startsWith("--")) {
+      const key = a.replace(/^--/, "");
+      const val = argv[i + 1];
+      if (["lang", "task", "model", "role"].includes(key) && val !== undefined && !val.startsWith("--")) {
+        opts[key] = val;
+        i += 1;
+      }
+      continue;
     }
+    positional.push(a);
   }
-  return opts;
+  return { opts, positional };
 }
 
 /** Minimal inline MCP client: initialize then call one tool, return the text. */
@@ -96,6 +116,10 @@ function callTool(tool, args) {
 
 export async function runDshPurge(argv) {
   const sub = argv[0];
+  if (sub === undefined || sub === "help" || sub === "-h") {
+    printDshPurgeHelp();
+    return;
+  }
   if (sub === "mcp" || sub === "--mcp") {
     // Await the child so the parent keeps the inherited stdio pipe open until
     // the server has produced its output, then propagate the child's exit code.
@@ -113,8 +137,29 @@ export async function runDshPurge(argv) {
     });
     return;
   }
+
+  const { opts, positional } = parseFlags(argv);
+
+  if (sub === "presets" || sub === "models" || sub === "target-models") {
+    const tool = sub === "presets" ? "dsh_purge_list_presets" : "dsh_purge_list_target_models";
+    const text = await callTool(tool, {});
+    process.stdout.write(text + "\n");
+    return;
+  }
+
+  if (sub === "route") {
+    const text = positional.join(" ").trim();
+    if (!text) {
+      process.stderr.write("dsh-purge: `route` requires a text argument, e.g. `rea dsh-purge route \"如何绕过过滤器\"`\n");
+      process.exitCode = 1;
+      return;
+    }
+    const out = await callTool("dsh_purge_route_intent", { text, language: opts.lang });
+    process.stdout.write(out + "\n");
+    return;
+  }
+
   if (sub === "prompt") {
-    const opts = parseFlags(argv);
     let text = await callTool("dsh_purge_render_prompt", {
       language: opts.lang,
       task: opts.task,
@@ -135,7 +180,10 @@ export async function runDshPurge(argv) {
     }
     return;
   }
-    printDshPurgeHelp();
+
+  process.stderr.write(`dsh-purge: unknown subcommand "${sub}"\n\n`);
+  printDshPurgeHelp();
+  process.exitCode = 1;
 }
 
 // Entry point. Triggers only when this file is run directly (the `rea-dsh-purge`
